@@ -46,6 +46,75 @@
         <script src="data/InfrastrukturBangunanDesa_9.js"></script>
         <script src="data/Jalur_10.js"></script>
         <script>
+        window.tryNextImage = function(imgElement, srcList, currentIndex) {
+            if (currentIndex < srcList.length - 1) {
+                imgElement.onerror = function() {
+                    window.tryNextImage(imgElement, srcList, currentIndex + 1);
+                };
+                imgElement.src = srcList[currentIndex + 1];
+            } else {
+                imgElement.outerHTML = '<i>Foto lapangan tidak ditemukan</i>';
+            }
+        };
+
+        function getFeatureImageHtml(feature) {
+            var gambarPath = feature.properties['Gambar'] !== null ? String(feature.properties['Gambar']) : '';
+            var lokasiName = feature.properties['Nama_Tempa'] !== null ? String(feature.properties['Nama_Tempa']) : '';
+            
+            var srcList = [];
+            
+            // 1. Primary source: converted Gambar path (replacing \ and / and : with _)
+            if (gambarPath) {
+                var filename = gambarPath.replace(/[\\\/:]/g, '_');
+                srcList.push('images/' + filename);
+                
+                // Extension fallbacks for the Gambar path filename
+                var extIndex = filename.lastIndexOf('.');
+                if (extIndex !== -1) {
+                    var baseName = filename.substring(0, extIndex);
+                    var origExt = filename.substring(extIndex).toLowerCase();
+                    var extensions = ['.jpg', '.jpeg', '.png', '.gif', '.JPG', '.JPEG', '.PNG'];
+                    for (var i = 0; i < extensions.length; i++) {
+                        if (extensions[i].toLowerCase() !== origExt) {
+                            srcList.push('images/' + baseName + extensions[i]);
+                        }
+                    }
+                }
+            }
+            
+            // 2. Specific hardcoded fallback for Balai Pertemuan Desa Kuta Mulyo
+            if (lokasiName === 'Balai Pertemuan Desa Kuta Mulyo') {
+                srcList.push('images/Balai Pertemuan Desa.png');
+                srcList.push('images/Balai Pertemuan Desa.jpg');
+                srcList.push('images/Balai Pertemuan Desa.jpeg');
+            }
+            
+            // 3. Fallbacks using lokasiName directly
+            if (lokasiName) {
+                srcList.push('images/' + lokasiName + '.jpg');
+                srcList.push('images/' + lokasiName + '.png');
+                srcList.push('images/' + lokasiName + '.jpeg');
+                srcList.push('images/' + lokasiName + '.JPG');
+                srcList.push('images/' + lokasiName + '.JPEG');
+                srcList.push('images/' + lokasiName + '.PNG');
+            }
+            
+            // Deduplicate srcList
+            srcList = srcList.filter(function(item, pos) {
+                return srcList.indexOf(item) == pos;
+            });
+            
+            if (srcList.length === 0) {
+                return '<i>Tidak ada foto lapangan</i>';
+            }
+            
+            var initialSrc = srcList[0];
+            var srcListJson = JSON.stringify(srcList).replace(/"/g, '&quot;');
+            var onerrorAttr = ' onerror="window.tryNextImage(this, ' + srcListJson + ', 0)"';
+            
+            return '<img src="' + initialSrc + '" style="width: 100%; height: auto; max-height: 500px; object-fit: contain; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"' + onerrorAttr + '>';
+        }
+
         var map = L.map('map', {
             zoomControl:false, maxZoom:28, minZoom:1
         }).fitBounds([[3.367553470715308,98.63911287285434],[3.411514712450764,98.71370331961593]]);
@@ -532,7 +601,6 @@
         bounds_group.addLayer(layer_BatasDesaKutaMulyo_8);
         map.addLayer(layer_BatasDesaKutaMulyo_8);
        function pop_InfrastrukturBangunanDesa_9(feature, layer) {
-            // Ambil nama lokasi untuk memanggil file SVG yang pas
             var lokasiName = feature.properties['Nama_Tempa'] !== null ? String(feature.properties['Nama_Tempa']) : '';
             
             var popupContent = '<div style="font-family: Arial, sans-serif; min-width: 500px; max-width: 600px;">\
@@ -543,8 +611,8 @@
                         <td style="width: 80%; vertical-align: top; padding: 5px 0;">' + (lokasiName !== '' ? lokasiName : '-') + '</td>\
                     </tr>\
                     <tr>\
-                        <td style="font-weight: bold; vertical-align: top; padding: 5px 0;">Foto / Logo</td>\
-                        <td style="padding: 5px 0;">' + (lokasiName !== '' ? '<img src="images/' + lokasiName + '.svg" style="width: 100%; height: auto; max-height: 500px; object-fit: contain; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onerror="this.outerHTML=\'<i>File SVG tidak ditemukan atau nama tidak pas</i>\'">' : '<i>Tidak ada nama lokasi</i>') + '</td>\
+                        <td style="font-weight: bold; vertical-align: top; padding: 5px 0;">Foto Lapangan</td>\
+                        <td style="padding: 5px 0;">' + getFeatureImageHtml(feature) + '</td>\
                     </tr>\
                 </table>\
                 <div style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #000; margin-top: 18px; margin-bottom: 8px; padding-bottom: 4px;">Penggunaan Lahan</div>\
