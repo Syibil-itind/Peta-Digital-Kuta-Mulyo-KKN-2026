@@ -1,0 +1,23 @@
+# File sampah sistem operasi Windows & Mac
+Thumbs.db
+ehthumbs.db
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Folder dari text editor (VS Code, dll)
+.vscode/
+.idea/
+
+# File mentahan QGIS (Berjaga-jaga kalau tidak sengaja tercampur)
+*.qgs
+*.qgz
+*.qgs~
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.qpj
