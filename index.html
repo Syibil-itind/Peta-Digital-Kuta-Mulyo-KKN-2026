@@ -117,7 +117,8 @@
             top: 0;
             left: 0;
             width: 100vw;
-            height: 100vh;
+            min-height: 100vh;
+            height: auto;
             background: linear-gradient(180deg, rgba(8, 12, 20, 0.45) 0%, rgba(8, 12, 20, 0.75) 100%), url('images/village_bg.webp');
             background-size: cover;
             background-position: center;
@@ -130,7 +131,8 @@
             box-sizing: border-box;
             transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             color: #f8fafc;
-            overflow: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         #welcome-splash-overlay.fade-out {
@@ -1483,16 +1485,19 @@
         var mapInitialized = false;
         var scriptsLoading = false;
         
-        var mapScripts = [
+        var coreScripts = [
             "js/qgis2web_expressions.js",
             "js/leaflet.js",
+            "js/Autolinker.min.js",
+            "js/rbush.min.js",
+            "js/labelgun.min.js"
+        ];
+        
+        var pluginScripts = [
             "js/L.Control.Layers.Tree.min.js",
             "js/leaflet.rotatedMarker.js",
             "js/leaflet.pattern.js",
             "js/leaflet-hash.js",
-            "js/Autolinker.min.js",
-            "js/rbush.min.js",
-            "js/labelgun.min.js",
             "js/labels.js",
             "js/leaflet.photon.js",
             "js/leaflet-measure.js",
@@ -1506,20 +1511,29 @@
             "data/Jalur_10.js"
         ];
 
-        function loadScriptsSequentially(list, callback) {
-            var index = 0;
-            function next() {
-                if (index < list.length) {
-                    var script = document.createElement('script');
-                    script.src = list[index++];
-                    script.onload = next;
-                    script.onerror = next;
-                    document.body.appendChild(script);
-                } else {
-                    if (typeof callback === 'function') callback();
-                }
+        function loadScriptsInParallel(list, callback) {
+            var loadedCount = 0;
+            if (list.length === 0) {
+                if (typeof callback === 'function') callback();
+                return;
             }
-            next();
+            for (var i = 0; i < list.length; i++) {
+                var script = document.createElement('script');
+                script.src = list[i];
+                script.onload = function() {
+                    loadedCount++;
+                    if (loadedCount === list.length) {
+                        if (typeof callback === 'function') callback();
+                    }
+                };
+                script.onerror = function() {
+                    loadedCount++;
+                    if (loadedCount === list.length) {
+                        if (typeof callback === 'function') callback();
+                    }
+                };
+                document.body.appendChild(script);
+            }
         }
 
         function startMapExploration() {
@@ -1534,22 +1548,26 @@
                 btn.style.cursor = 'not-allowed';
             }
             
-            loadScriptsSequentially(mapScripts, function() {
-                if (typeof window.initializeMap === 'function') {
-                    window.initializeMap();
-                }
-                mapInitialized = true;
-                scriptsLoading = false;
-                
-                var overlay = document.getElementById('welcome-splash-overlay');
-                if (overlay) {
-                    overlay.classList.add('fade-out');
-                    setTimeout(function() {
-                        if (overlay.parentNode) {
-                            overlay.parentNode.removeChild(overlay);
-                        }
-                    }, 600);
-                }
+            // Step 1: Load core dependencies in parallel
+            loadScriptsInParallel(coreScripts, function() {
+                // Step 2: Load plugins and data variables in parallel
+                loadScriptsInParallel(pluginScripts, function() {
+                    if (typeof window.initializeMap === 'function') {
+                        window.initializeMap();
+                    }
+                    mapInitialized = true;
+                    scriptsLoading = false;
+                    
+                    var overlay = document.getElementById('welcome-splash-overlay');
+                    if (overlay) {
+                        overlay.classList.add('fade-out');
+                        setTimeout(function() {
+                            if (overlay.parentNode) {
+                                overlay.parentNode.removeChild(overlay);
+                            }
+                        }, 600);
+                    }
+                });
             });
         }
         </script>
